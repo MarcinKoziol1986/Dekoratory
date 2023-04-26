@@ -190,25 +190,25 @@ while True:
                 plik3.write(polecenie_do_zapisu)
 import json
 
-class Employee:
-    def __init__(self, name, position, salary):
+class Pracownik:
+    def __init__(self, name, stanowisko, wynagrodzenie):
         self.name = name
-        self.position = position
-        self.salary = salary
+        self.stanowisko = stanowisko
+        self.wynagrodzenie = wynagrodzenie
 
     def __str__(self):
-        return f"{self.name} ({self.position}) - ${self.salary}/month"
+        return f"{self.name} ({self.stanowisko}) - ${self.wynagrodzenie}/month"
 
-class Company:
+class Firma:
     def __init__(self):
-        self.employees = []
+        self.pracownicy = []
 
-    def add_employee(self, employee):
-        self.employees.append(employee)
+    def add_pracownik(self, pracownik):
+        self.pracownicy.append(pracownik)
 
-    def list_employees(self):
-        for employee in self.employees:
-            print(employee)
+    def list_pracownicy(self):
+        for pracownik in self.pracownicy:
+            print(pracownik)
 
 class FileManager:
     def __init__(self, filename):
@@ -227,29 +227,31 @@ class FileManager:
             json.dump(data, file)
 
 class Manager:
-    def __init__(self, company, file_manager):
-        self.company = company
+    def __init__(self, firma, file_manager):
+        self.firma = firma
         self.file_manager = file_manager
 
     def execute(self, command):
-        if command == "list":
-            self.company.list_employees()
-        elif command.startswith("add "):
-            _, name, position, salary = command.split(" ")
-            employee = Employee(name, position, int(salary))
-            self.company.add_employee(employee)
-            self.file_manager.write_data([employee.__dict__ for employee in self.company.employees])
+        if command == "spis":
+            self.firma.list_pracownicy()
+        elif command.startswith("dodaj "):
+            _, name, stanowisko, wynagrodzenie = command.split(" ")
+            pracownik = Pracownik(name, stanowisko, int(wynagrodzenie))
+            self.firma.add_pracownik(pracownik)
+            self.file_manager.write_data([pracownik.__dict__ for
+                                          pracownik in self.firma.pracownicy])
         else:
             print("Invalid command")
 
     def assign(self, data):
-        employees = [Employee(employee['name'], employee['position'], employee['salary']) for employee in data]
-        self.company.employees = employees
+        pracownicy = [Pracownik(pracownik['imie'], pracownik['stanowisko'],
+                                pracownik['wynagrodzenie']) for pracownik in data]
+        self.firma.pracownicy = pracownicy
 
 if __name__ == "__main__":
-    company = Company()
+    firma = Firma()
     file_manager = FileManager("data.json")
-    manager = Manager(company, file_manager)
+    manager = Manager(firma, file_manager)
 
     data = file_manager.read_data()
     if data:
