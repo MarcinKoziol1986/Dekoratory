@@ -65,7 +65,16 @@ Zadbaj o błędy, które mogą się pojawić w trakcie wykonywania operacji
 Saldo konta oraz magazyn mają zostać zapisane do pliku tekstowego, a przy kolejnym
 uruchomieniu programu ma zostać odczytany. Zapisać należy również historię operacji
 (przegląd), która powinna być rozszerzana przy każdym kolejnym uruchomieniu programu.
+------------------------------------------------------------
+Rozbuduj program do zarządzania firmą. Wszystkie funkcjonalności (komendy, zapisywanie i
+ czytanie przy użyciu pliku itp.) pozostają bez zmian.
 
+Stwórz clasę Manager, która będzie implementowała dwie kluczowe metody - execute i assign.
+ Przy ich użyciu wywołuj poszczególne fragmenty aplikacji. Metody execute i assign powinny
+  zostać zaimplementowane zgodnie z przykładami z materiałów do zajęć.
+
+Niedozwolone są żadne zmienne globalne, wszystkie dane powinny być przechowywane wewnątrz
+ obiektu Manager.
 """
 
 DOSTEPNE_KOMENDY = (
@@ -77,7 +86,7 @@ DOSTEPNE_KOMENDY = (
     'magazyn',
     'przeglad',
     'koniec',
-)
+   )
 
 magazyn = {}
 historia = []
@@ -219,7 +228,7 @@ class FileManager:
             with open(self.filename, 'r') as file:
                 data = json.load(file)
                 return data
-        except FileNotFoundError:
+        except (FileNotFoundError, json.JSONDecodeError):
             return None
 
     def write_data(self, data):
@@ -230,35 +239,153 @@ class Manager:
     def __init__(self, firma, file_manager):
         self.firma = firma
         self.file_manager = file_manager
+        self.commands = {}
+
+    def assign(self, *args):
+        def decorator(func):
+            self.commands[tuple(args)] = func
+            return func
+
+        return decorator
 
     def execute(self, command):
-        if command == "spis":
-            self.firma.list_pracownicy()
-        elif command.startswith("dodaj "):
-            _, name, stanowisko, wynagrodzenie = command.split(" ")
-            pracownik = Pracownik(name, stanowisko, int(wynagrodzenie))
-            self.firma.add_pracownik(pracownik)
-            self.file_manager.write_data([pracownik.__dict__ for
-                                          pracownik in self.firma.pracownicy])
+        if command in self.commands:
+            return self.commands[command]()
         else:
-            print("Invalid command")
-
-    def assign(self, data):
-        pracownicy = [Pracownik(pracownik['imie'], pracownik['stanowisko'],
-                                pracownik['wynagrodzenie']) for pracownik in data]
-        self.firma.pracownicy = pracownicy
+            print(f"Nieznana komenda: {command}")
 
 if __name__ == "__main__":
     firma = Firma()
     file_manager = FileManager("data.json")
     manager = Manager(firma, file_manager)
 
+
+    @manager.assign("dodaj")
+    def dodaj_pracownika(self):
+        imie = input("Podaj imię pracownika: ")
+        stanowisko = input("Podaj stanowisko pracownika: ")
+        wynagrodzenie = int(input("Podaj wynagrodzenie pracownika (liczba całkowita): "))
+        pracownik = Pracownik(imie, stanowisko, wynagrodzenie)
+        self.firma.add_pracownik(pracownik)
+        print(f'Dodano pracownika: {pracownik}')
+        self.file_manager.write_data(
+        [pracownik.__dict__ for pracownik in self.firma.pracownicy])
+
+
+    @manager.assign("spis")
+    def spis_pracownikow(self):
+        print("Lista pracowników:")
+        self.firma.list_pracownicy()
+    @manager.assign("lista")
+    def lista():
+        firma.list_pracownicy()
+
+    @manager.assign("konto")
+    def konto():
+        print(f'Aktualny stan konta to: {firma.konto}')
+
+    @manager.assign("saldo")
+    def saldo():
+        try:
+            kwota = int(input('Podaj Kwote, o ktora zmieni się stan konta:'))
+        except ValueError:
+            print("Wprowadź poprawną wartość liczbową.")
+            return
+
+        if firma.konto + kwota < 0:
+            print('Ta Operacja jest niemozliwa')
+        else:
+            firma.konto += kwota
+            print(f'Zmieniam stan konta o {kwota}')
+    @manager.assign("sprzedaz")
+    def sprzedaz(self):
+        nazwa_produktu = input('Podaj Nazwe Produktu: ')
+        cena = float(input('Podaj Cene Jednego Produktu: '))
+        ilosc_produktow = int(input('Podaj Ilosc Produktow: '))
+        koszt = cena * ilosc_produktow
+
+        if nazwa_produktu not in self.firma.magazyn:
+            print("Nie ma takiego produktu")
+        else:
+            self.firma.magazyn[nazwa_produktu][0] -= ilosc_produktow
+            self.firma.konto += koszt
+            print(f'Sprzedaje {ilosc_produktow} sztuk {nazwa_produktu} za {koszt}')
+        pass
+
+    @manager.assign("zakup")
+    def zakup(self):
+        nazwa_produktu = input('Podaj Nazwe Produktu: ')
+        cena = float(input('Podaj Cene Jednego Produktu: '))
+        ilosc_produktow = int(input('Podaj Ilosc Produktow: '))
+        koszt = cena * ilosc_produktow
+
+        if koszt > self.firma.konto:
+            print('Nie masz tylu srodkow na koncie')
+        else:
+            if nazwa_produktu not in self.firma.magazyn:
+                self.firma.magazyn[nazwa_produktu] = [0, cena]
+            self.firma.magazyn[nazwa_produktu][0] += ilosc_produktow
+            self.firma.konto -= koszt
+            print(f'Zakupiono {ilosc_produktow} sztuk {nazwa_produktu} za {koszt}')
+        pass
+
+    @manager.assign("magazyn")
+    def magazyn(self):
+        produkt_w_magazynie = input('Podaj nazwe produktu:')
+        if produkt_w_magazynie not in self.firma.magazyn:
+            print('Brak towaru w magazynie')
+        else:
+            print(
+                f'W magazynie znajduje się {produkt_w_magazynie.upper()}'
+                f' (ilość/cena za sztukę)')
+            print(self.firma.magazyn[produkt_w_magazynie])
+        pass
+
+    @manager.assign("koniec")
+    def koniec(self):
+        print('Koniec programu, miłego dnia!')
+        return False
+
+
+    @manager.assign("spis")
+    def execute(self, command):
+        if command == "spis":
+            self.list_command()
+        elif command.startswith("dodaj "):
+            _, name, stanowisko, wynagrodzenie = command.split(" ")
+            self.add_command(name, stanowisko, int(wynagrodzenie))
+        else:
+            print("Blad")
+
+
+
+    def add_command(self, name, stanowisko, wynagrodzenie):
+        pracownik = Pracownik(name, stanowisko, wynagrodzenie)
+        self.firma.add_pracownik(pracownik)
+        self.file_manager.write_data([pracownik.__dict__ for
+                                      pracownik in self.firma.pracownicy])
+
+    def list_command(self):
+        self.firma.list_pracownicy()
+
+
     data = file_manager.read_data()
-    if data:
-        manager.assign(data)
+    if data is not None:
+        if isinstance(data, list):
+            for command in data:
+                if isinstance(command, list) and len(command) > 0:
+                    manager.execute(command[0])
+                else:
+                    print("Błąd: niepoprawny format danych w pliku.")
+        else:
+            print("Błąd: dane w pliku powinny być listą.")
+    else:
+        print(
+            "Błąd podczas odczytu pliku. Upewnij się, że plik istnieje i ma poprawny format.")
 
     while True:
-        command = input("Enter command: ")
-        if command == "exit":
+        komenda = input("Podaj komendę (spis, dodaj, koniec): ")
+        if komenda == "koniec":
             break
-        manager.execute(command)
+        else:
+            manager.execute(komenda)
